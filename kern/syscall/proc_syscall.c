@@ -21,12 +21,13 @@
 #include <thread.h>
 #include <../arch/mips/include/trapframe.h>
 #include <kern/wait.h>
-pid_t 
+
+pid_t
 sys_getpid(pid_t* retval){
-	*retval = curproc->pid;
+	*retval = curproc->pid;   //Enter the forked process
 	return 0;
 }
-pid_t 
+pid_t
 sys_fork(struct trapframe * trap, pid_t* retval){
 	int err = 0;
 	struct trapframe *child_trap = kmalloc(sizeof(struct trapframe));
@@ -39,7 +40,7 @@ sys_fork(struct trapframe * trap, pid_t* retval){
 	if(child_proc == NULL){
 		return -1;
 	}
-	//struct addrspace *child_addr = NULL; 
+	//struct addrspace *child_addr = NULL;
 	err = as_copy(curproc->p_addrspace, &child_proc->p_addrspace);
 	if(err){
 		return err;
@@ -54,7 +55,7 @@ sys_fork(struct trapframe * trap, pid_t* retval){
 	return 0;
 }
 
-void 
+void
 fork_func(void *data1, unsigned long data2){
 	struct trapframe *trap_f =  data1;
 	//struct addrspace *addr = (struct addrspace *) data2;
@@ -63,13 +64,13 @@ fork_func(void *data1, unsigned long data2){
 	//&tf->tf_a3 = 0;      /* signal no error */
 	//&tf->tf_epc += 4;
 	//mips_usermode(&tf);
-	
+
 	enter_forked_process(&tf);
 	//curproc->p_addrspace = addr;
 	//as_activate ();
 	mips_usermode(&tf);
 	(void)data2;
-	
+
 }
 
 void
@@ -78,7 +79,13 @@ sys_exit(int exitcode){
 	(void)statsss;
 	thread_exit();
 }
-//pid_t 
-//sys_waitpid(pid_t pid, int *returncode, int flags ,int*retval ){
-	
-//}
+//pid_t
+// sys_waitpid(pid_t pid, int *returncode, int flags ,int*retval ){
+//
+// 	struct spinlock* waitspinslock;
+// 	struct wchan* waitchan;
+//
+//
+//
+//
+// }
