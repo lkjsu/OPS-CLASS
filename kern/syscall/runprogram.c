@@ -44,6 +44,7 @@
 #include <vfs.h>
 #include <syscall.h>
 #include <test.h>
+#include <file_syscall.h>
 
 /*
  * Load program "progname" and start running it in usermode.
@@ -86,17 +87,17 @@ runprogram(char *progname)
 		vfs_close(v);
 		return result;
 	}
-
+//	stdio_fd();
 	/* Done with the file now. */
 	vfs_close(v);
-
+	stdio_fd();
 	/* Define the user stack in the address space */
 	result = as_define_stack(as, &stackptr);
 	if (result) {
 		/* p_addrspace will go away when curproc is destroyed */
 		return result;
 	}
-
+//	stdio_fd();
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
 			  NULL /*userspace addr of environment*/,

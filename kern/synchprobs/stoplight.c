@@ -69,50 +69,128 @@
 #include <test.h>
 #include <synch.h>
 
-/*
- * Called by the driver during initialization.
- */
+ int get_quadrant(uint32_t);
+ int quadrant_change(int);
+ struct semaphore *get_sem(int);
+ struct semaphore* first_semaphore;
+struct semaphore* second_semaphore;
+struct semaphore *third_semaphore;
+ struct semaphore *fourth_semaphore;
+
+ struct lock* master_lock;
 
 void
 stoplight_init() {
-	return;
+
+    first_semaphore=sem_create("first_semaphore",1);
+	second_semaphore=sem_create("second_semaphore",1);
+	third_semaphore=sem_create("third_semaphore",1);
+	fourth_semaphore=sem_create("fourth_semaphore",1);
+
+  master_lock= lock_create("master_lock");
+
 }
-
-/*
- * Called by the driver during teardown.
- */
-
 void stoplight_cleanup() {
-	return;
+
+	sem_destroy(first_semaphore);
+	sem_destroy(second_semaphore);
+	sem_destroy(third_semaphore);
+	sem_destroy(fourth_semaphore);
+	lock_destroy(master_lock);
 }
 
 void
 turnright(uint32_t direction, uint32_t index)
 {
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	return;
+  //lock_acquire(master_lock);
+  //int current_quadrant=get_quadrant(direction);
+ int current_quadrant=(int)(direction);
+	P(get_sem(current_quadrant));
+	inQuadrant(current_quadrant,index);
+
+	//inQuadrant(current_quadrant,index);
+	leaveIntersection(index);
+	V(get_sem(current_quadrant));
+
+	//lock_release(master_lock);
 }
 void
 gostraight(uint32_t direction, uint32_t index)
 {
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	return;
+	lock_acquire(master_lock);
+	 //int current_quadrant=get_quadrant(direction);
+	int current_quadrant=(int)(direction);
+     P(get_sem(current_quadrant));
+	inQuadrant(current_quadrant,index);
+	int second_quadrant = quadrant_change(current_quadrant);
+	P(get_sem(second_quadrant));
+	lock_release(master_lock);
+	lock_acquire(master_lock);
+	inQuadrant(second_quadrant,index);
+	V(get_sem(current_quadrant));
+
+	leaveIntersection(index);
+	V(get_sem(second_quadrant));
+	lock_release(master_lock);
+
 }
 void
 turnleft(uint32_t direction, uint32_t index)
 {
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	return;
+	lock_acquire(master_lock);
+	 //int current_quadrant=get_quadrant(direction);
+	int current_quadrant=(int)(direction);
+	P(get_sem(current_quadrant));
+	inQuadrant(current_quadrant,index);
+
+	int second_quadrant = quadrant_change(current_quadrant);
+	P(get_sem(second_quadrant));
+	lock_release(master_lock);
+	lock_acquire(master_lock);
+	inQuadrant(second_quadrant,index);
+	V(get_sem(current_quadrant));
+	int third_quadrant = quadrant_change(second_quadrant);
+	P(get_sem(third_quadrant));
+	lock_release(master_lock);
+	lock_acquire(master_lock);
+	inQuadrant(third_quadrant,index);
+	V(get_sem(second_quadrant));
+	leaveIntersection(index);
+	V(get_sem(third_quadrant));
+
+	lock_release(master_lock);
 }
+
+int quadrant_change(int direction){
+
+    //int newdir = direction;
+
+   return (direction+3)%4;
+}
+
+int get_quadrant(uint32_t direction){
+
+	int newdir = (int) direction;
+
+	return (newdir+2)%4;
+}
+ struct semaphore
+ *get_sem(int direction){
+	switch(direction){
+		case 0:
+			return first_semaphore;
+			break;
+		case 1:
+			return second_semaphore;
+			break;
+		case 2:
+			return third_semaphore;
+			break;
+		case 3:
+			return fourth_semaphore;
+			break;
+		default:
+			return NULL;
+	}
+
+ }

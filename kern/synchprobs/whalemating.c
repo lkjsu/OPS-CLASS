@@ -39,13 +39,35 @@
 #include <thread.h>
 #include <test.h>
 #include <synch.h>
+#include <wchan.h>
 
 /*
  * Called by the driver during initialization.
  */
+ // static struct cv* male_cv= NULL;
+ // static struct cv* female_cv= NULL;
+ // static struct cv* matchmaker_cv= NULL;
+ //  volatile int male_count;
+ // volatile int female_count;
+ // volatile int matchmaker_count;
+  //static struct lock* male_lock= NULL;
+ // static struct lock* female_lock=NULL;
+  struct semaphore* male_semaphore;
+	struct semaphore* female_semaphore;
+	
+
+	// struct wchan master_wchan;
+	// struct spinlock master_s
 
 void whalemating_init() {
-	return;
+	  // male_cv= cv_create("male_cv");
+	  // female_cv= cv_create("female_cv");
+	  // matchmaker_cv= cv_create("matchmaker_cv");
+		male_semaphore=sem_create("male_sempahore",0);
+		female_semaphore=sem_create("female_semaphore",0);
+		// master_wchan = wchan_create
+	  // master_lock=lock_create("master_lock");
+
 }
 
 /*
@@ -54,38 +76,39 @@ void whalemating_init() {
 
 void
 whalemating_cleanup() {
-	return;
+  // cv_destroy(male_cv);
+	// cv_destroy(female_cv);
+	// cv_destroy(matchmaker_cv);
+
+	sem_destroy(male_semaphore);
+	sem_destroy(female_semaphore);
+	// lock_destroy(male_lock);
+	// lock_destroy (female_lock);
+	// lock_destroy(master_lock);
+	// return;
 }
 
 void
 male(uint32_t index)
 {
-	(void)index;
-	/*
-	 * Implement this function by calling male_start and male_end when
-	 * appropriate.
-	 */
-	return;
+ male_start(index);
+ P(male_semaphore);
+	male_end(index);
 }
 
 void
 female(uint32_t index)
 {
-	(void)index;
-	/*
-	 * Implement this function by calling female_start and female_end when
-	 * appropriate.
-	 */
-	return;
+	female_start(index);
+	P(female_semaphore);
+	female_end(index);
 }
 
 void
 matchmaker(uint32_t index)
 {
-	(void)index;
-	/*
-	 * Implement this function by calling matchmaker_start and matchmaker_end
-	 * when appropriate.
-	 */
-	return;
+	matchmaker_start(index);
+	V(female_semaphore);
+	V(male_semaphore);
+	matchmaker_end(index);
 }

@@ -74,9 +74,13 @@ void V(struct semaphore *);
  */
 struct lock {
         char *lk_name;
-        HANGMAN_LOCKABLE(lk_hangman);   /* Deadlock detector hook. */
+//        HANGMAN_LOCKABLE(lk_hangman);   /* Deadlock detector hook. */
         // add what you need here
         // (don't forget to mark things volatile as needed)
+        struct wchan *lock_wchan;
+        struct spinlock lock_spinlock;
+        volatile struct thread *lock_thread;
+//        bool lock_avail;
 };
 
 struct lock *lock_create(const char *name);
@@ -116,6 +120,9 @@ struct cv {
         char *cv_name;
         // add what you need here
         // (don't forget to mark things volatile as needed)
+        struct spinlock cv_spinlock;
+        struct wchan *cv_wchan;
+//        bool isSignal;
 };
 
 struct cv *cv_create(const char *name);
@@ -152,6 +159,14 @@ struct rwlock {
         char *rwlock_name;
         // add what you need here
         // (don't forget to mark things volatile as needed)
+        struct lock *rwlock_lock;
+        struct cv *rwlock_cv;
+        //struct spinlock rwlock_lock;
+	    //struct wchan *rw_wchan;
+        bool isWriting;
+        bool isReading;
+		volatile unsigned pending_writes;
+		volatile unsigned read_count;
 };
 
 struct rwlock * rwlock_create(const char *);
@@ -161,7 +176,7 @@ void rwlock_destroy(struct rwlock *);
  * Operations:
  *    rwlock_acquire_read  - Get the lock for reading. Multiple threads can
  *                          hold the lock for reading at the same time.
- *    rwlock_release_read  - Free the lock. 
+ *    rwlock_release_read  - Free the lock.
  *    rwlock_acquire_write - Get the lock for writing. Only one thread can
  *                           hold the write lock at one time.
  *    rwlock_release_write - Free the write lock.

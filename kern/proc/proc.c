@@ -48,12 +48,13 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <limits.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
 struct proc *kproc;
-
+struct proc *proc_table[PID_MAX];
 /*
  * Create a proc structure.
  */
@@ -74,6 +75,21 @@ proc_create(const char *name)
 	}
 
 	proc->p_numthreads = 0;
+	
+	int p;
+	for (p =PID_MIN; p <= PID_MAX; p++){
+		if(proc_table[p] == NULL){
+			proc_table[p] = proc;
+			break;
+		}
+	}
+	if(p> PID_MAX){
+		kfree(proc ->p_name);
+		kfree(proc);
+		return  NULL;
+	}
+	proc->pid = p;
+	
 	spinlock_init(&proc->p_lock);
 
 	/* VM fields */
@@ -81,7 +97,12 @@ proc_create(const char *name)
 
 	/* VFS fields */
 	proc->p_cwd = NULL;
+	proc->ppid = -1;
 
+	int i;
+	for(i=0;i<=OPEN_MAX;i++){
+		proc->file_table[i]=NULL;
+	}
 	return proc;
 }
 
@@ -182,6 +203,10 @@ proc_bootstrap(void)
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
+	int i =0;
+	for(i = 0; i <= PID_MAX; i++ ){
+		proc_table[i] = NULL;
+	}
 }
 
 /*
@@ -221,6 +246,16 @@ proc_create_runprogram(const char *name)
 	return newproc;
 }
 
+struct proc *
+proc_create_child(const char *name)
+{
+	struct proc *child_proc;
+	child_proc = proc_create(name);
+	if(child_proc == NULL){
+		return NULL;
+	}
+	return child_proc;
+}
 /*
  * Add a thread to a process. Either the thread or the process might
  * or might not be current.

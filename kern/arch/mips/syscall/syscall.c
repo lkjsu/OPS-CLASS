@@ -35,8 +35,9 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
-
-
+#include <file_syscall.h>
+#include <copyinout.h>
+#include <proc_syscall.h>
 /*
  * System call dispatcher.
  *
@@ -80,8 +81,12 @@ syscall(struct trapframe *tf)
 {
 	int callno;
 	int32_t retval;
+	off_t retval2;
 	int err;
-
+	int code;
+	off_t pos;
+	
+	
 	KASSERT(curthread != NULL);
 	KASSERT(curthread->t_curspl == 0);
 	KASSERT(curthread->t_iplhigh_count == 0);
@@ -96,21 +101,62 @@ syscall(struct trapframe *tf)
 	 * deal with it except for calls that return other values,
 	 * like write.
 	 */
-
+	retval2 = 0;
 	retval = 0;
 
 	switch (callno) {
 	    case SYS_reboot:
-		err = sys_reboot(tf->tf_a0);
-		break;
+			err = sys_reboot(tf->tf_a0);
+			break;
 
 	    case SYS___time:
-		err = sys___time((userptr_t)tf->tf_a0,
-				 (userptr_t)tf->tf_a1);
-		break;
-
-	    /* Add stuff here */
-
+			err = sys___time((userptr_t)tf->tf_a0,
+					(userptr_t)tf->tf_a1);
+			break;
+	    case SYS_write:
+			err = sys_write(tf->tf_a0, (void *)tf->tf_a1, (size_t)tf->tf_a2, &retval);
+			break;
+	    case SYS_read:
+			err = sys_read((int)tf->tf_a0, (void *)tf->tf_a1, (size_t)tf->tf_a2,&retval);
+			break;
+	    case SYS_open:
+			err = sys_open((const char *)tf->tf_a0, (int )tf->tf_a1, &retval);
+			break;
+		case SYS_close:
+			err = sys_close((int)tf->tf_a0, &retval);
+			break;
+		case SYS_dup2 :
+			err = sys_dup2((int)tf->tf_a0, (int)tf->tf_a1, &retval);
+			break;
+		case SYS_lseek :
+			pos =  (((off_t)tf->tf_a2 << 32) | tf->tf_a3);
+			err = copyin((const_userptr_t)(tf->tf_sp+16), &code,sizeof(code));
+			if(err){
+				break;
+			}
+			err = sys_lseek((int)tf->tf_a0, pos, code,  &retval2);
+			if(err){
+				break;
+			}
+			retval =(int32_t)(retval2 & (~0ULL << 32)) ;
+			tf->tf_v1 = (int32_t)(retval2);
+			break;
+		case SYS_chdir:
+			err = sys_chdir((const char *)tf->tf_a0, &retval);
+			break;
+		case SYS___getcwd:
+			err = sys__getcwd((char*)tf->tf_a0, (size_t)tf->tf_a1,  &retval);
+			break;
+		case SYS_getpid:
+			err = sys_getpid(&retval);
+			break;
+		case SYS_fork:
+			err = sys_fork(tf,&retval);
+			break;
+		case SYS__exit:
+			sys_exit((int)tf->tf_a0);
+			err = 0;
+			break;
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
@@ -129,8 +175,11 @@ syscall(struct trapframe *tf)
 	}
 	else {
 		/* Success. */
-		tf->tf_v0 = retval;
-		tf->tf_a3 = 0;      /* signal no error */
+		//if(retval2 > 0){
+			//tf->tf_v1 = retval2;
+		//}
+			tf->tf_v0 = retval;
+			tf->tf_a3 = 0;      /* signal no error */
 	}
 
 	/*
@@ -157,5 +206,8 @@ syscall(struct trapframe *tf)
 void
 enter_forked_process(struct trapframe *tf)
 {
-	(void)tf;
+	tf->tf_v0 = 0;
+	tf->tf_a3 = 0;      /* signal no error */
+	tf->tf_epc += 4;
+	//mips_usermode(tf);
 }
