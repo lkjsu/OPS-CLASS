@@ -39,6 +39,7 @@
 #include <spinlock.h>
 #include <file_syscall.h>
 #include <limits.h>
+#include <synch.h>
 struct addrspace;
 struct thread;
 struct vnode;
@@ -73,6 +74,11 @@ struct proc {
 	struct file_handler *file_table[OPEN_MAX];
 	pid_t pid;
 	pid_t ppid;
+	bool exit_stat;
+	int exit_code;
+	//struct semaphore* wait_sem;
+	struct lock* wait_lock;
+	struct cv *wait_cv;
 	/* add more material here as needed */
 };
 struct proc * proc_create_child(const char *);

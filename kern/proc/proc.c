@@ -49,6 +49,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <limits.h>
+#include <synch.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -77,7 +78,7 @@ proc_create(const char *name)
 	proc->p_numthreads = 0;
 	
 	int p;
-	for (p =PID_MIN; p <= PID_MAX; p++){
+	for (p =PID_MIN; p < PID_MAX; p++){
 		if(proc_table[p] == NULL){
 			proc_table[p] = proc;
 			break;
@@ -98,11 +99,15 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 	proc->ppid = -1;
-
+	proc->exit_code = 0;
+	proc->exit_stat = false;
 	int i;
 	for(i=0;i<=OPEN_MAX;i++){
 		proc->file_table[i]=NULL;
 	}
+	//proc->wait_sem = sem_create("wait_semaphore",1);
+	proc->wait_lock = lock_create("wait_lock");
+	proc->wait_cv = cv_create("wait_cv");
 	return proc;
 }
 
@@ -204,7 +209,7 @@ proc_bootstrap(void)
 		panic("proc_create for kproc failed\n");
 	}
 	int i =0;
-	for(i = 0; i <= PID_MAX; i++ ){
+	for(i = 0; i <PID_MAX; i++ ){
 		proc_table[i] = NULL;
 	}
 }
@@ -226,7 +231,6 @@ proc_create_runprogram(const char *name)
 	}
 
 	/* VM fields */
-
 	newproc->p_addrspace = NULL;
 
 	/* VFS fields */
@@ -254,6 +258,15 @@ proc_create_child(const char *name)
 	if(child_proc == NULL){
 		return NULL;
 	}
+	//child_proc->p_addrspace = NULL;
+	spinlock_acquire(&curproc->p_lock);
+	if (curproc->p_cwd != NULL) {
+		child_proc->p_cwd = curproc->p_cwd;
+		VOP_INCREF(curproc->p_cwd);
+	}
+	child_proc -> ppid = curproc->pid;
+	spinlock_release(&curproc->p_lock);
+
 	return child_proc;
 }
 /*

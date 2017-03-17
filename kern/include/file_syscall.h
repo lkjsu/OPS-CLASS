@@ -20,4 +20,5 @@ off_t sys_lseek(int , off_t , int, off_t*);
 int sys_dup2(int , int, int*);
 ssize_t sys__getcwd(char *, size_t, int*);
 int sys_chdir(const char *, int*);
+//int sys_remove(const char *,int *);
 #endif
